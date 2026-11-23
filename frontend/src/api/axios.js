@@ -2,8 +2,13 @@ import axios from 'axios';
 
 const getBaseUrl = () => {
   // 1. If VITE_API_URL is configured (e.g. Vercel production), prioritize it
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL.replace(/\/$/, '');
+  let url = import.meta.env.VITE_API_URL;
+  if (url && typeof url === 'string') {
+    url = url.trim().replace(/\/$/, '');
+    if (url.endsWith('/api')) {
+      url = url.slice(0, -4);
+    }
+    return url;
   }
   // 2. In local browser dev, dynamically match current host
   if (typeof window !== 'undefined') {
@@ -15,8 +20,14 @@ const getBaseUrl = () => {
   return 'http://localhost:8000';
 };
 
+const BASE_URL = getBaseUrl();
+
+if (typeof window !== 'undefined') {
+  console.log('[CanteenX API Base URL]:', BASE_URL);
+}
+
 const api = axios.create({
-  baseURL: getBaseUrl(),
+  baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 

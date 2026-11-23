@@ -2,8 +2,31 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
+from django.db import connection
+
+def health_check(request):
+    db_status = "connected"
+    try:
+        connection.ensure_connection()
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+
+    return JsonResponse({
+        "status": "online",
+        "service": "CanteenX Backend API",
+        "database": db_status,
+        "endpoints": {
+            "auth": "/api/auth/",
+            "food": "/api/food/",
+            "orders": "/api/orders/",
+            "admin": "/admin/",
+        }
+    })
 
 urlpatterns = [
+    path('', health_check, name='root_health'),
+    path('api/health/', health_check, name='api_health'),
     path('admin/', admin.site.urls),
 
     # Core modules
