@@ -1,12 +1,18 @@
 import axios from 'axios';
 
 const getBaseUrl = () => {
-  if (typeof window !== 'undefined') {
-    // Dynamically match frontend host (127.0.0.1 or localhost)
-    const host = window.location.hostname;
-    return `http://${host}:8000`;
+  // 1. If VITE_API_URL is configured (e.g. Vercel production), prioritize it
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL.replace(/\/$/, '');
   }
-  return import.meta.env.VITE_API_URL || 'http://localhost:8000';
+  // 2. In local browser dev, dynamically match current host
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return `http://${host}:8000`;
+    }
+  }
+  return 'http://localhost:8000';
 };
 
 const api = axios.create({

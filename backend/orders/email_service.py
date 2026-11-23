@@ -9,6 +9,9 @@ LOGS_DIR = Path(settings.BASE_DIR) / 'logs'
 LOGS_DIR.mkdir(exist_ok=True)
 EMAIL_LOG_FILE = LOGS_DIR / 'sent_emails.log'
 
+def _frontend_url():
+    return getattr(settings, 'FRONTEND_URL', 'http://127.0.0.1:5173').rstrip('/')
+
 def _log_email(to_email, subject, text_content):
     """Log all dispatched emails for developer review and audit trail"""
     timestamp = timezone.now().strftime('%Y-%m-%d %H:%M:%S %Z')
@@ -69,7 +72,7 @@ Special Notes: {order.special_instructions or 'None'}
 WHAT HAPPENS NEXT?
 As soon as the canteen staff accepts your order, you will receive an official CONFIRMATION email with your active 4-digit Counter Pickup PIN.
 
-Track Live Status in CanteenX: http://127.0.0.1:5173/orders/{order.id}
+Track Live Status in CanteenX: {_frontend_url()}/orders/{order.id}
 
 Warm regards,
 Medi-Caps University Food Services
@@ -148,7 +151,7 @@ AB Road, Pigdamber, Rau, Indore, Madhya Pradesh 453331
       </table>
 
       <div style="text-align: center; margin-top: 24px;">
-        <a href="http://127.0.0.1:5173/orders/{order.id}" style="display: inline-block; background: #ea580c; color: #ffffff; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 10px; text-decoration: none;">Track Order Online</a>
+        <a href="{_frontend_url()}/orders/{order.id}" style="display: inline-block; background: #ea580c; color: #ffffff; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 10px; text-decoration: none;">Track Order Online</a>
       </div>
     </div>
 
@@ -205,7 +208,7 @@ INSTRUCTIONS FOR PICKUP:
 3. Call out or present your 4-digit PIN: {order.pickup_pin}.
 4. Collect your freshly prepared meal!
 
-Track live order status: http://127.0.0.1:5173/orders/{order.id}
+Track live order status: {_frontend_url()}/orders/{order.id}
 
 Bon Appetit!
 Medi-Caps University Food Services
@@ -280,7 +283,7 @@ Medi-Caps University Food Services
       </table>
 
       <div style="text-align: center; margin-top: 24px;">
-        <a href="http://127.0.0.1:5173/orders/{order.id}" style="display: inline-block; background: #059669; color: #ffffff; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 10px; text-decoration: none;">View Digital Meal Pass</a>
+        <a href="{_frontend_url()}/orders/{order.id}" style="display: inline-block; background: #059669; color: #ffffff; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 10px; text-decoration: none;">View Digital Meal Pass</a>
       </div>
     </div>
 
@@ -311,7 +314,7 @@ YOUR PICKUP PIN: {order.pickup_pin}
 
 Please head over to the counter now to collect your freshly prepared food!
 
-View Digital Pass: http://127.0.0.1:5173/orders/{order.id}
+View Digital Pass: {_frontend_url()}/orders/{order.id}
 
 Medi-Caps University CanteenX
 """
@@ -333,7 +336,7 @@ Reason provided by canteen:
 
 If any online payment was deducted, it will be refunded automatically to your source account.
 
-Explore other dishes on CanteenX: http://127.0.0.1:5173/menu
+Explore other dishes on CanteenX: {_frontend_url()}/menu
 
 Medi-Caps University CanteenX
 """

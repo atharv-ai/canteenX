@@ -19,6 +19,10 @@ EMAIL_LOG_FILE = LOGS_DIR / 'sent_emails.log'
 WHATSAPP_LOG_FILE = LOGS_DIR / 'whatsapp_messages.log'
 
 
+def _frontend_url():
+    return getattr(settings, 'FRONTEND_URL', 'http://127.0.0.1:5173').rstrip('/')
+
+
 def _format_phone_e164(phone):
     """Normalize phone number to E.164 standard (e.g. +91XXXXXXXXXX)"""
     if not phone:
@@ -239,7 +243,7 @@ TOTAL: Rs. {order.total_amount:.2f}
 STATUS: PENDING CANTEEN ACCEPTANCE
 Once {canteen.name} accepts your order, you will receive an acceptance email with your pickup PIN.
 
-View Order Pass: http://127.0.0.1:5173/orders/{order.id}
+View Order Pass: {_frontend_url()}/orders/{order.id}
 """
 
     html_content = f"""
@@ -258,7 +262,7 @@ View Order Pass: http://127.0.0.1:5173/orders/{order.id}
     {_generate_items_html(order)}
 
     <div style="margin-top: 24px; text-align: center;">
-      <a href="http://127.0.0.1:5173/orders/{order.id}" style="display: inline-block; background: #ea580c; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 13px; padding: 12px 24px; border-radius: 10px;">
+      <a href="{_frontend_url()}/orders/{order.id}" style="display: inline-block; background: #ea580c; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 13px; padding: 12px 24px; border-radius: 10px;">
         Track Live Status
       </a>
     </div>
@@ -272,7 +276,7 @@ View Order Pass: http://127.0.0.1:5173/orders/{order.id}
         f"Hi {student.full_name}, your order *#{order.order_number}* for *{canteen.name}* has been placed successfully.\n\n"
         f"💰 *Total:* ₹{order.total_amount:.2f} ({order.payment_method.upper()})\n"
         f"⏳ *Status:* Waiting for canteen confirmation.\n\n"
-        f"Track live: http://127.0.0.1:5173/orders/{order.id}"
+        f"Track live: {_frontend_url()}/orders/{order.id}"
     )
     _send_whatsapp_safe(phone, wa_msg)
 
@@ -312,7 +316,7 @@ ORDER SUMMARY:
 ITEMS:
 {items_list_text}
 
-View Live Pass: http://127.0.0.1:5173/orders/{order.id}
+View Live Pass: {_frontend_url()}/orders/{order.id}
 """
 
     html_content = f"""
@@ -335,7 +339,7 @@ View Live Pass: http://127.0.0.1:5173/orders/{order.id}
     {_generate_items_html(order)}
 
     <div style="margin-top: 24px; text-align: center;">
-      <a href="http://127.0.0.1:5173/orders/{order.id}" style="display: inline-block; background: #10b981; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 13px; padding: 12px 24px; border-radius: 10px;">
+      <a href="{_frontend_url()}/orders/{order.id}" style="display: inline-block; background: #10b981; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 13px; padding: 12px 24px; border-radius: 10px;">
         Open Digital Meal Pass
       </a>
     </div>
@@ -349,7 +353,7 @@ View Live Pass: http://127.0.0.1:5173/orders/{order.id}
         f"Great news {student.full_name}! *{canteen.name}* has accepted order *#{order.order_number}*.\n\n"
         f"🔑 *Pickup PIN:* *{order.pickup_pin}*\n"
         f"⏱️ *Prep Time:* {prep_str} (Est: ~{ready_time_str})\n\n"
-        f"View your digital pass: http://127.0.0.1:5173/orders/{order.id}"
+        f"View your digital pass: {_frontend_url()}/orders/{order.id}"
     )
     _send_whatsapp_safe(phone, wa_msg)
 
@@ -371,7 +375,7 @@ Pickup PIN: {order.pickup_pin}
 
 We'll notify you as soon as the counter marks it READY FOR PICKUP!
 
-Digital Pass: http://127.0.0.1:5173/orders/{order.id}
+Digital Pass: {_frontend_url()}/orders/{order.id}
 """
 
     html_content = f"""
@@ -418,7 +422,7 @@ YOUR PICKUP PIN: {order.pickup_pin}
 
 Please head over to the counter now to collect your freshly prepared food!
 
-View Digital Pass: http://127.0.0.1:5173/orders/{order.id}
+View Digital Pass: {_frontend_url()}/orders/{order.id}
 """
 
     html_content = f"""
@@ -438,7 +442,7 @@ View Digital Pass: http://127.0.0.1:5173/orders/{order.id}
     </div>
 
     <div style="text-align: center;">
-      <a href="http://127.0.0.1:5173/orders/{order.id}" style="display: inline-block; background: #9333ea; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 14px 28px; border-radius: 12px;">
+      <a href="{_frontend_url()}/orders/{order.id}" style="display: inline-block; background: #9333ea; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 14px 28px; border-radius: 12px;">
         Show Pass at Counter
       </a>
     </div>
@@ -452,7 +456,7 @@ View Digital Pass: http://127.0.0.1:5173/orders/{order.id}
         f"Your meal is hot & packed at *{canteen.name}*!\n\n"
         f"🔑 *SHOW PICKUP PIN:* *{order.pickup_pin}*\n"
         f"📍 *Location:* {canteen.location}\n\n"
-        f"Show digital pass: http://127.0.0.1:5173/orders/{order.id}"
+        f"Show digital pass: {_frontend_url()}/orders/{order.id}"
     )
     _send_whatsapp_safe(phone, wa_msg)
 
@@ -487,7 +491,7 @@ INVOICE SUMMARY:
 ITEMS:
 {items_list_text}
 
-Rate your dining experience: http://127.0.0.1:5173/orders/{order.id}
+Rate your dining experience: {_frontend_url()}/orders/{order.id}
 
 We hope you enjoy your meal!
 Medi-Caps University CanteenX
@@ -544,7 +548,7 @@ Medi-Caps University CanteenX
     </div>
 
     <div style="margin-top: 28px; text-align: center;">
-      <a href="http://127.0.0.1:5173/orders/{order.id}" style="display: inline-block; background: #0f172a; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 13px; padding: 12px 24px; border-radius: 10px;">
+      <a href="{_frontend_url()}/orders/{order.id}" style="display: inline-block; background: #0f172a; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 13px; padding: 12px 24px; border-radius: 10px;">
         Leave Food Rating & Review
       </a>
     </div>
@@ -558,7 +562,7 @@ Medi-Caps University CanteenX
         f"Thank you for dining at *{canteen.name}*, {student.full_name}!\n\n"
         f"💵 *Amount Paid:* ₹{order.total_amount:.2f} ({order.payment_method.upper()})\n"
         f"✅ *Status:* Handed over & fulfilled\n\n"
-        f"Rate your meal & view full invoice: http://127.0.0.1:5173/orders/{order.id}"
+        f"Rate your meal & view full invoice: {_frontend_url()}/orders/{order.id}"
     )
     _send_whatsapp_safe(phone, wa_msg)
 
@@ -581,7 +585,7 @@ Reason provided by canteen:
 
 If any online payment was deducted, it will be refunded automatically to your source account.
 
-Explore other dishes on CanteenX: http://127.0.0.1:5173/menu
+Explore other dishes on CanteenX: {_frontend_url()}/menu
 """
 
     html_content = f"""
@@ -598,7 +602,7 @@ Explore other dishes on CanteenX: http://127.0.0.1:5173/menu
     </p>
 
     <div style="margin-top: 24px; text-align: center;">
-      <a href="http://127.0.0.1:5173/menu" style="display: inline-block; background: #ea580c; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 13px; padding: 12px 24px; border-radius: 10px;">
+      <a href="{_frontend_url()}/menu" style="display: inline-block; background: #ea580c; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 13px; padding: 12px 24px; border-radius: 10px;">
         Browse Other Canteens
       </a>
     </div>
