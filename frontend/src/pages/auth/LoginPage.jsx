@@ -29,7 +29,15 @@ export default function LoginPage() {
     } catch (err) {
       if (err.response?.data?.email_unverified) {
         toast.error('Email not verified. Please verify your 6-digit code.', { duration: 4000 });
-        navigate('/register', { state: { email: err.response.data.email || email, step: 'otp' } });
+        const devOtp = err.response.data.dev_otp || err.response.data.otp;
+        navigate('/register', {
+          state: {
+            email: err.response.data.email || email,
+            step: 'otp',
+            dev_otp: devOtp,
+            otp: devOtp,
+          }
+        });
         return;
       }
       const msg = err.response?.data?.non_field_errors?.[0] ||

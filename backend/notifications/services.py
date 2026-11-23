@@ -84,8 +84,17 @@ def _send_email_safe(to_email, subject, text_body, html_body=None):
         return
     _log_email(to_email, subject, text_body)
 
+    # 1. Try Resend HTTP API (Port 443 HTTPS, immune to cloud SMTP blocks)
     try:
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'CanteenX Medi-Caps <canteenx@medicaps.ac.in>')
+        from accounts.services import _send_via_resend
+        if _send_via_resend(to_email, subject, text_body, html_body):
+            return
+    except Exception as e:
+        print(f"[Resend Hook Error] {e}")
+
+    # 2. Fallback to standard SMTP
+    try:
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'CanteenX Medi-Caps <canteen.maill@gmail.com>')
         msg = EmailMultiAlternatives(
             subject=subject,
             body=text_body,
@@ -94,7 +103,7 @@ def _send_email_safe(to_email, subject, text_body, html_body=None):
         )
         if html_body:
             msg.attach_alternative(html_body, "text/html")
-        msg.send(fail_silently=True)
+        msg.send(fail_silently=False)
         print(f"[Email Sent] To: {to_email} | Subject: {subject}")
     except Exception as e:
         print(f"[Email Error] Failed to send email to {to_email}: {e}")

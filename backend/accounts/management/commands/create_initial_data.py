@@ -74,12 +74,22 @@ class Command(BaseCommand):
                 full_name='Atharv Sharma',
                 password='Student@123',
                 mobile='9893011223',
-                role='student'
+                role='student',
+                is_active=True,
+                is_email_verified=True,
             )
             StudentProfile.objects.create(user=student_user, enrollment_number='EN2024CS001')
             self.stdout.write(self.style.SUCCESS(f'Created Demo Student: {student_email} / Student@123'))
         else:
             self.stdout.write('Demo Student already exists.')
+
+        # Ensure all existing seeded accounts are verified and active
+        User.objects.filter(email__in=[
+            'admin@medicaps.ac.in',
+            'canteen@medicaps.ac.in',
+            'cafine@medicaps.ac.in',
+            'student@medicaps.ac.in'
+        ]).update(is_email_verified=True, is_active=True)
 
         # 5. Food Categories
         categories_data = [

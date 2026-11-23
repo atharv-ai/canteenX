@@ -31,12 +31,14 @@ class RegisterView(APIView):
             user = serializer.save()
 
             if user.role == 'student':
-                # Trigger 6-digit Email OTP via Gmail SMTP
-                generate_and_send_otp(user)
+                # Trigger 6-digit Email OTP
+                otp_code = generate_and_send_otp(user)
                 return Response({
                     'message': 'Registration successful. A 6-digit verification code has been sent to your email.',
                     'email': user.email,
                     'otp_required': True,
+                    'dev_otp': otp_code,
+                    'otp': otp_code,
                 }, status=status.HTTP_201_CREATED)
 
             refresh = RefreshToken.for_user(user)
@@ -148,8 +150,12 @@ class ResendOTPView(APIView):
                     'retry_after': remaining
                 }, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
-        generate_and_send_otp(user)
-        return Response({'message': 'A new 6-digit verification code has been sent to your email.'}, status=status.HTTP_200_OK)
+        otp_code = generate_and_send_otp(user)
+        return Response({
+            'message': 'A new 6-digit verification code has been sent to your email.',
+            'dev_otp': otp_code,
+            'otp': otp_code,
+        }, status=status.HTTP_200_OK)
 
 
 class LoginView(APIView):

@@ -80,6 +80,40 @@ def _build_otp_email_html(user, otp_code):
 """
 
 
+def _send_via_resend(to_email, subject, text_content, html_content=None):
+    """Send via Resend HTTP API over HTTPS (Port 443), immune to cloud SMTP port blocks"""
+    api_key = getattr(settings, 'RESEND_API_KEY', '') or os.environ.get('RESEND_API_KEY', '')
+    if not api_key:
+        return False
+    from_email = getattr(settings, 'RESEND_FROM_EMAIL', '') or os.environ.get('RESEND_FROM_EMAIL', 'CanteenX <onboarding@resend.dev>')
+    try:
+        import requests
+        resp = requests.post(
+            'https://api.resend.com/emails',
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'from': from_email,
+                'to': [to_email] if isinstance(to_email, str) else to_email,
+                'subject': subject,
+                'html': html_content or f"<pre>{text_content}</pre>",
+                'text': text_content,
+            },
+            timeout=8
+        )
+        if resp.status_code in [200, 201]:
+            print(f"[Resend API] Successfully sent email to {to_email}")
+            return True
+        else:
+            print(f"[Resend API Warning] Failed with status {resp.status_code}: {resp.text}")
+            return False
+    except Exception as e:
+        print(f"[Resend API Error] {e}")
+        return False
+
+
 def send_otp_email(user, otp_code, async_send=True):
     subject = f"[CanteenX] Your Verification Code: {otp_code}"
     text_content = f"""Dear {user.full_name},
@@ -98,8 +132,13 @@ If you did not request this, please ignore this email.
     print(f"[OTP Generated] For: {user.email} | OTP: {otp_code}")
 
     def _deliver():
+        # 1. Try Resend HTTP API (Port 443)
+        if _send_via_resend(user.email, subject, text_content, html_content):
+            return
+
+        # 2. Try SMTP
         try:
-            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'CanteenX Medi-Caps <canteenx@medicaps.ac.in>')
+            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'CanteenX Medi-Caps <canteen.maill@gmail.com>')
             msg = EmailMultiAlternatives(
                 subject=subject,
                 body=text_content,
@@ -107,7 +146,7 @@ If you did not request this, please ignore this email.
                 to=[user.email]
             )
             msg.attach_alternative(html_content, "text/html")
-            msg.send(fail_silently=True)
+            msg.send(fail_silently=False)
             print(f"[OTP Email Sent] To: {user.email} | Subject: {subject}")
         except Exception as e:
             print(f"[OTP Email Error] Failed to send OTP email to {user.email}: {e}")

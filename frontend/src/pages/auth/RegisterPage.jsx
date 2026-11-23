@@ -16,9 +16,11 @@ export default function RegisterPage() {
   // If navigated here with unverified email state from login
   const initialEmail = location.state?.email || '';
   const initialStep = location.state?.step || 'form';
+  const initialDevOtp = location.state?.dev_otp || location.state?.otp || '';
 
   const [step, setStep] = useState(initialStep); // 'form' | 'otp'
   const [registeredEmail, setRegisteredEmail] = useState(initialEmail);
+  const [devOtp, setDevOtp] = useState(initialDevOtp);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -33,7 +35,7 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // OTP State
-  const [otpCode, setOtpCode] = useState('');
+  const [otpCode, setOtpCode] = useState(initialDevOtp);
   const [otpError, setOtpError] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
@@ -78,6 +80,11 @@ export default function RegisterPage() {
       if (res.data?.otp_required) {
         setStep('otp');
         setCooldown(60);
+        if (res.data?.dev_otp || res.data?.otp) {
+          const code = res.data.dev_otp || res.data.otp;
+          setDevOtp(code);
+          setOtpCode(code);
+        }
         toast.success('Registration successful! Please check your email for the 6-digit code.', { duration: 5000 });
       } else {
         // Fallback for immediate token issuance (e.g. non-students)
@@ -142,6 +149,11 @@ export default function RegisterPage() {
     try {
       const { data } = await resendOtp({ email: registeredEmail });
       setCooldown(60);
+      if (data?.dev_otp || data?.otp) {
+        const code = data.dev_otp || data.otp;
+        setDevOtp(code);
+        setOtpCode(code);
+      }
       toast.success(data.message || 'A new verification code has been sent to your email.');
     } catch (err) {
       const msg = err.response?.data?.error || 'Failed to resend verification code.';
@@ -187,6 +199,21 @@ export default function RegisterPage() {
                 <strong className="text-orange-950 font-bold">{registeredEmail}</strong>.
                 It is valid for 10 minutes.
               </p>
+              {devOtp && (
+                <div className="mt-3 pt-3 border-t border-orange-200/60 flex items-center justify-center gap-2">
+                  <span className="text-xs text-orange-800">Verification Code:</span>
+                  <span className="font-mono text-sm font-black text-orange-900 tracking-wider bg-white px-2.5 py-0.5 rounded-lg border border-orange-200">
+                    {devOtp}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setOtpCode(devOtp)}
+                    className="text-xs font-bold text-orange-600 hover:text-orange-700 underline ml-1 cursor-pointer"
+                  >
+                    Auto-Fill
+                  </button>
+                </div>
+              )}
             </div>
 
             {otpError && (

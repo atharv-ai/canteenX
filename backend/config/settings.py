@@ -177,6 +177,11 @@ EMAIL_PORT          = config('EMAIL_PORT',      default=587, cast=int)
 EMAIL_USE_TLS       = config('EMAIL_USE_TLS',   default=True, cast=bool)
 EMAIL_HOST_USER     = _email_host_user
 EMAIL_HOST_PASSWORD = _email_host_password
+EMAIL_TIMEOUT       = config('EMAIL_TIMEOUT',   default=5, cast=int)
+
+# Resend HTTP API support (Bypasses cloud provider port 587/465 blocks over HTTPS port 443)
+RESEND_API_KEY      = config('RESEND_API_KEY', default='')
+RESEND_FROM_EMAIL   = config('RESEND_FROM_EMAIL', default='CanteenX <onboarding@resend.dev>')
 
 # DEFAULT_FROM_EMAIL: when Gmail SMTP is used, the From address MUST match the
 # authenticated account — otherwise Gmail rejects it. We auto-build it here.

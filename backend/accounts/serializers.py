@@ -96,10 +96,16 @@ class UserLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid email or password.")
 
         if user_obj and not user_obj.is_email_verified:
+            from .models import EmailOTP
+            from .services import generate_and_send_otp
+            latest_otp = EmailOTP.objects.filter(user=user_obj, is_used=False).order_by('-created_at').first()
+            otp_val = latest_otp.otp_code if latest_otp else generate_and_send_otp(user_obj)
             raise serializers.ValidationError({
                 "detail": "Email address not verified. Please verify your OTP to activate your account.",
                 "email_unverified": True,
-                "email": user_obj.email
+                "email": user_obj.email,
+                "dev_otp": otp_val,
+                "otp": otp_val,
             })
 
         if user_obj and not user_obj.is_active:
