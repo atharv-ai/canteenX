@@ -1,0 +1,50 @@
+# ──────────────────────────────────────────
+# Python
+# ──────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+venv/
+env/
+.env
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# ──────────────────────────────────────────
+# Django
+# ──────────────────────────────────────────
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# ──────────────────────────────────────────
+# Frontend
+# ──────────────────────────────────────────
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+
+# ──────────────────────────────────────────
+# IDE / Editor
+# ──────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ──────────────────────────────────────────
+# Testing & Coverage
+# ──────────────────────────────────────────
+htmlcov/
+.coverage
+.pytest_cache/
