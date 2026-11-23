@@ -114,6 +114,41 @@ def _send_via_resend(to_email, subject, text_content, html_content=None):
         return False
 
 
+def _send_via_brevo(to_email, subject, text_content, html_content=None):
+    """Send via Brevo HTTP API over HTTPS (Port 443), works for ANY recipient address without custom domain"""
+    api_key = getattr(settings, 'BREVO_API_KEY', '') or os.environ.get('BREVO_API_KEY', '')
+    if not api_key:
+        return False
+    sender_email = getattr(settings, 'EMAIL_HOST_USER', '') or 'canteen.maill@gmail.com'
+    try:
+        import requests
+        resp = requests.post(
+            'https://api.brevo.com/v3/smtp/email',
+            headers={
+                'api-key': api_key,
+                'Content-Type': 'application/json',
+                'accept': 'application/json',
+            },
+            json={
+                'sender': {'name': 'CanteenX Medi-Caps', 'email': sender_email},
+                'to': [{'email': to_email}],
+                'subject': subject,
+                'htmlContent': html_content or f"<pre>{text_content}</pre>",
+                'textContent': text_content,
+            },
+            timeout=8
+        )
+        if resp.status_code in [200, 201, 202]:
+            print(f"[Brevo API] Successfully sent email to {to_email}")
+            return True
+        else:
+            print(f"[Brevo API Warning] Failed with status {resp.status_code}: {resp.text}")
+            return False
+    except Exception as e:
+        print(f"[Brevo API Error] {e}")
+        return False
+
+
 def send_otp_email(user, otp_code, async_send=True):
     subject = f"[CanteenX] Your Verification Code: {otp_code}"
     text_content = f"""Dear {user.full_name},
@@ -132,11 +167,15 @@ If you did not request this, please ignore this email.
     print(f"[OTP Generated] For: {user.email} | OTP: {otp_code}")
 
     def _deliver():
-        # 1. Try Resend HTTP API (Port 443)
+        # 1. Try Brevo HTTP API (Port 443, sends to any recipient)
+        if _send_via_brevo(user.email, subject, text_content, html_content):
+            return
+
+        # 2. Try Resend HTTP API (Port 443)
         if _send_via_resend(user.email, subject, text_content, html_content):
             return
 
-        # 2. Try SMTP
+        # 3. Try SMTP
         try:
             from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'CanteenX Medi-Caps <canteen.maill@gmail.com>')
             msg = EmailMultiAlternatives(

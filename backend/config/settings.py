@@ -183,6 +183,9 @@ EMAIL_TIMEOUT       = config('EMAIL_TIMEOUT',   default=5, cast=int)
 RESEND_API_KEY      = config('RESEND_API_KEY', default='')
 RESEND_FROM_EMAIL   = config('RESEND_FROM_EMAIL', default='CanteenX <onboarding@resend.dev>')
 
+# Brevo HTTP API support (Bypasses cloud provider port blocks, sends to ANY recipient without custom domain)
+BREVO_API_KEY       = config('BREVO_API_KEY', default='')
+
 # DEFAULT_FROM_EMAIL: when Gmail SMTP is used, the From address MUST match the
 # authenticated account — otherwise Gmail rejects it. We auto-build it here.
 _from_default = (

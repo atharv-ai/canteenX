@@ -31,14 +31,12 @@ class RegisterView(APIView):
             user = serializer.save()
 
             if user.role == 'student':
-                # Trigger 6-digit Email OTP
-                otp_code = generate_and_send_otp(user)
+                # Trigger 6-digit Email OTP to recipient inbox
+                generate_and_send_otp(user)
                 return Response({
                     'message': 'Registration successful. A 6-digit verification code has been sent to your email.',
                     'email': user.email,
                     'otp_required': True,
-                    'dev_otp': otp_code,
-                    'otp': otp_code,
                 }, status=status.HTTP_201_CREATED)
 
             refresh = RefreshToken.for_user(user)
@@ -150,12 +148,8 @@ class ResendOTPView(APIView):
                     'retry_after': remaining
                 }, status=status.HTTP_429_TOO_MANY_REQUESTS)
 
-        otp_code = generate_and_send_otp(user)
-        return Response({
-            'message': 'A new 6-digit verification code has been sent to your email.',
-            'dev_otp': otp_code,
-            'otp': otp_code,
-        }, status=status.HTTP_200_OK)
+        generate_and_send_otp(user)
+        return Response({'message': 'A new 6-digit verification code has been sent to your email.'}, status=status.HTTP_200_OK)
 
 
 class LoginView(APIView):
@@ -440,3 +434,108 @@ class ResetPasswordConfirmView(APIView):
             {'message': 'Password reset successful. You can now log in with your new password.'},
             status=status.HTTP_200_OK
         )
+
+
+class DebugEmailView(APIView):
+    """
+    GET /api/auth/debug-email/?to=recipient@gmail.com
+    Tests Resend, Brevo, and SMTP directly from the running host and reports exact error codes.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        to_email = request.query_params.get('to', getattr(settings, 'EMAIL_HOST_USER', 'canteen.maill@gmail.com'))
+        resend_key = getattr(settings, 'RESEND_API_KEY', '') or os.environ.get('RESEND_API_KEY', '')
+        brevo_key = getattr(settings, 'BREVO_API_KEY', '') or os.environ.get('BREVO_API_KEY', '')
+        smtp_user = getattr(settings, 'EMAIL_HOST_USER', '')
+        smtp_pass = getattr(settings, 'EMAIL_HOST_PASSWORD', '')
+
+        diagnostics = {
+            "email_backend": getattr(settings, 'EMAIL_BACKEND', ''),
+            "smtp_user": smtp_user,
+            "smtp_pass_configured": bool(smtp_pass),
+            "resend_key_configured": bool(resend_key),
+            "brevo_key_configured": bool(brevo_key),
+            "test_recipient": to_email,
+            "results": {}
+        }
+
+        # 1. Test Resend
+        if resend_key:
+            import requests
+            try:
+                from_email = getattr(settings, 'RESEND_FROM_EMAIL', 'CanteenX <onboarding@resend.dev>')
+                r = requests.post(
+                    'https://api.resend.com/emails',
+                    headers={'Authorization': f'Bearer {resend_key}', 'Content-Type': 'application/json'},
+                    json={
+                        'from': from_email,
+                        'to': [to_email],
+                        'subject': '[CanteenX Test] Verification Email Delivery Test',
+                        'html': '<p>Testing CanteenX email delivery via Resend.</p>'
+                    },
+                    timeout=8
+                )
+                try:
+                    resp_body = r.json()
+                except Exception:
+                    resp_body = r.text
+                diagnostics["results"]["resend"] = {
+                    "status_code": r.status_code,
+                    "response": resp_body
+                }
+            except Exception as e:
+                diagnostics["results"]["resend"] = {"error": str(e)}
+
+        # 2. Test Brevo
+        if brevo_key:
+            import requests
+            try:
+                r = requests.post(
+                    'https://api.brevo.com/v3/smtp/email',
+                    headers={'api-key': brevo_key, 'Content-Type': 'application/json', 'accept': 'application/json'},
+                    json={
+                        'sender': {'name': 'CanteenX Medi-Caps', 'email': smtp_user or 'canteen.maill@gmail.com'},
+                        'to': [{'email': to_email}],
+                        'subject': '[CanteenX Test] Verification Email Delivery Test',
+                        'htmlContent': '<p>Testing CanteenX email delivery via Brevo.</p>'
+                    },
+                    timeout=8
+                )
+                try:
+                    resp_body = r.json()
+                except Exception:
+                    resp_body = r.text
+                diagnostics["results"]["brevo"] = {
+                    "status_code": r.status_code,
+                    "response": resp_body
+                }
+            except Exception as e:
+                diagnostics["results"]["brevo"] = {"error": str(e)}
+
+        # 3. Test SMTP port 587
+        import smtplib
+        try:
+            s587 = smtplib.SMTP(getattr(settings, 'EMAIL_HOST', 'smtp.gmail.com'), 587, timeout=4)
+            s587.ehlo()
+            s587.starttls()
+            s587.ehlo()
+            if smtp_user and smtp_pass:
+                s587.login(smtp_user, smtp_pass)
+            s587.quit()
+            diagnostics["results"]["smtp_port_587"] = "CONNECTED_AND_AUTHENTICATED"
+        except Exception as e:
+            diagnostics["results"]["smtp_port_587"] = f"{type(e).__name__}: {str(e)}"
+
+        # 4. Test SMTP port 465 (SSL)
+        try:
+            s465 = smtplib.SMTP_SSL(getattr(settings, 'EMAIL_HOST', 'smtp.gmail.com'), 465, timeout=4)
+            s465.ehlo()
+            if smtp_user and smtp_pass:
+                s465.login(smtp_user, smtp_pass)
+            s465.quit()
+            diagnostics["results"]["smtp_port_465"] = "CONNECTED_AND_AUTHENTICATED"
+        except Exception as e:
+            diagnostics["results"]["smtp_port_465"] = f"{type(e).__name__}: {str(e)}"
+
+        return Response(diagnostics)

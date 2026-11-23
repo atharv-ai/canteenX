@@ -5,10 +5,11 @@ from .views import (
     ChangePasswordView, SuperAdminUserListView,
     SuperAdminToggleUserActiveView, SuperAdminCreateCanteenAdminView,
     ForgotPasswordView, ResetPasswordConfirmView,
-    VerifyOTPView, ResendOTPView,
+    VerifyOTPView, ResendOTPView, DebugEmailView,
 )
 
 urlpatterns = [
+    path('debug-email/', DebugEmailView.as_view(), name='debug_email'),
     path('register/', RegisterView.as_view(), name='register'),
     path('verify-otp/', VerifyOTPView.as_view(), name='verify_otp'),
     path('resend-otp/', ResendOTPView.as_view(), name='resend_otp'),

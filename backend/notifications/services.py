@@ -84,7 +84,15 @@ def _send_email_safe(to_email, subject, text_body, html_body=None):
         return
     _log_email(to_email, subject, text_body)
 
-    # 1. Try Resend HTTP API (Port 443 HTTPS, immune to cloud SMTP blocks)
+    # 1. Try Brevo HTTP API (Port 443 HTTPS, works for any recipient)
+    try:
+        from accounts.services import _send_via_brevo
+        if _send_via_brevo(to_email, subject, text_body, html_body):
+            return
+    except Exception as e:
+        print(f"[Brevo Hook Error] {e}")
+
+    # 2. Try Resend HTTP API (Port 443 HTTPS)
     try:
         from accounts.services import _send_via_resend
         if _send_via_resend(to_email, subject, text_body, html_body):
