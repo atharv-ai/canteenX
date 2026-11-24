@@ -102,7 +102,7 @@ def _send_email_safe(to_email, subject, text_body, html_body=None):
 
     # 2. Fallback to standard SMTP
     try:
-        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'CanteenX Medi-Caps <canteen.maill@gmail.com>')
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'CanteenX Medi-Caps <canteenmaill@gmail.com>')
         msg = EmailMultiAlternatives(
             subject=subject,
             body=text_body,

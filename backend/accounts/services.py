@@ -1,6 +1,9 @@
+import json
 import os
 import random
 import threading
+import urllib.error
+import urllib.request
 from datetime import timedelta
 from pathlib import Path
 
@@ -86,29 +89,34 @@ def _send_via_resend(to_email, subject, text_content, html_content=None):
     if not api_key:
         return False
     from_email = getattr(settings, 'RESEND_FROM_EMAIL', '') or os.environ.get('RESEND_FROM_EMAIL', 'CanteenX <onboarding@resend.dev>')
+    payload = json.dumps({
+        'from': from_email,
+        'to': [to_email] if isinstance(to_email, str) else to_email,
+        'subject': subject,
+        'html': html_content or f"<pre>{text_content}</pre>",
+        'text': text_content,
+    }).encode('utf-8')
+    req = urllib.request.Request(
+        'https://api.resend.com/emails',
+        data=payload,
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json',
+            'User-Agent': 'CanteenX/1.0',
+        },
+        method='POST'
+    )
     try:
-        import requests
-        resp = requests.post(
-            'https://api.resend.com/emails',
-            headers={
-                'Authorization': f'Bearer {api_key}',
-                'Content-Type': 'application/json',
-            },
-            json={
-                'from': from_email,
-                'to': [to_email] if isinstance(to_email, str) else to_email,
-                'subject': subject,
-                'html': html_content or f"<pre>{text_content}</pre>",
-                'text': text_content,
-            },
-            timeout=8
-        )
-        if resp.status_code in [200, 201]:
-            print(f"[Resend API] Successfully sent email to {to_email}")
-            return True
-        else:
-            print(f"[Resend API Warning] Failed with status {resp.status_code}: {resp.text}")
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status in (200, 201, 202):
+                print(f"[Resend API] Successfully sent email to {to_email}")
+                return True
+            print(f"[Resend API Warning] Failed with status {resp.status}")
             return False
+    except urllib.error.HTTPError as e:
+        err_msg = e.read().decode('utf-8', errors='replace')
+        print(f"[Resend API HTTPError {e.code}] {err_msg}")
+        return False
     except Exception as e:
         print(f"[Resend API Error] {e}")
         return False
@@ -119,31 +127,36 @@ def _send_via_brevo(to_email, subject, text_content, html_content=None):
     api_key = getattr(settings, 'BREVO_API_KEY', '') or os.environ.get('BREVO_API_KEY', '')
     if not api_key:
         return False
-    sender_email = getattr(settings, 'EMAIL_HOST_USER', '') or 'canteen.maill@gmail.com'
+    sender_email = getattr(settings, 'EMAIL_HOST_USER', '') or 'canteenmaill@gmail.com'
+    payload = json.dumps({
+        'sender': {'name': 'CanteenX Medi-Caps', 'email': sender_email},
+        'to': [{'email': to_email}],
+        'subject': subject,
+        'htmlContent': html_content or f"<pre>{text_content}</pre>",
+        'textContent': text_content,
+    }).encode('utf-8')
+    req = urllib.request.Request(
+        'https://api.brevo.com/v3/smtp/email',
+        data=payload,
+        headers={
+            'api-key': api_key,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'User-Agent': 'CanteenX/1.0',
+        },
+        method='POST'
+    )
     try:
-        import requests
-        resp = requests.post(
-            'https://api.brevo.com/v3/smtp/email',
-            headers={
-                'api-key': api_key,
-                'Content-Type': 'application/json',
-                'accept': 'application/json',
-            },
-            json={
-                'sender': {'name': 'CanteenX Medi-Caps', 'email': sender_email},
-                'to': [{'email': to_email}],
-                'subject': subject,
-                'htmlContent': html_content or f"<pre>{text_content}</pre>",
-                'textContent': text_content,
-            },
-            timeout=8
-        )
-        if resp.status_code in [200, 201, 202]:
-            print(f"[Brevo API] Successfully sent email to {to_email}")
-            return True
-        else:
-            print(f"[Brevo API Warning] Failed with status {resp.status_code}: {resp.text}")
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status in (200, 201, 202):
+                print(f"[Brevo API] Successfully sent email to {to_email}")
+                return True
+            print(f"[Brevo API Warning] Failed with status {resp.status}")
             return False
+    except urllib.error.HTTPError as e:
+        err_msg = e.read().decode('utf-8', errors='replace')
+        print(f"[Brevo API HTTPError {e.code}] {err_msg}")
+        return False
     except Exception as e:
         print(f"[Brevo API Error] {e}")
         return False
@@ -177,7 +190,7 @@ If you did not request this, please ignore this email.
 
         # 3. Try SMTP
         try:
-            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'CanteenX Medi-Caps <canteen.maill@gmail.com>')
+            from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'CanteenX Medi-Caps <canteenmaill@gmail.com>')
             msg = EmailMultiAlternatives(
                 subject=subject,
                 body=text_content,

@@ -445,9 +445,13 @@ class DebugEmailView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        import json
+        import smtplib
         import traceback
+        import urllib.error
+        import urllib.request
         try:
-            to_email = request.query_params.get('to', getattr(settings, 'EMAIL_HOST_USER', 'canteen.maill@gmail.com'))
+            to_email = request.query_params.get('to', getattr(settings, 'EMAIL_HOST_USER', 'canteenmaill@gmail.com'))
             resend_key = getattr(settings, 'RESEND_API_KEY', '') or os.environ.get('RESEND_API_KEY', '')
             brevo_key = getattr(settings, 'BREVO_API_KEY', '') or os.environ.get('BREVO_API_KEY', '')
             smtp_user = getattr(settings, 'EMAIL_HOST_USER', '')
@@ -465,59 +469,82 @@ class DebugEmailView(APIView):
 
             # 1. Test Resend
             if resend_key:
-                import requests
                 try:
                     from_email = getattr(settings, 'RESEND_FROM_EMAIL', 'CanteenX <onboarding@resend.dev>')
-                    r = requests.post(
+                    payload = json.dumps({
+                        'from': from_email,
+                        'to': [to_email],
+                        'subject': '[CanteenX Test] Verification Email Delivery Test',
+                        'html': '<p>Testing CanteenX email delivery via Resend.</p>'
+                    }).encode('utf-8')
+                    req = urllib.request.Request(
                         'https://api.resend.com/emails',
-                        headers={'Authorization': f'Bearer {resend_key}', 'Content-Type': 'application/json'},
-                        json={
-                            'from': from_email,
-                            'to': [to_email],
-                            'subject': '[CanteenX Test] Verification Email Delivery Test',
-                            'html': '<p>Testing CanteenX email delivery via Resend.</p>'
-                        },
-                        timeout=8
+                        data=payload,
+                        headers={'Authorization': f'Bearer {resend_key}', 'Content-Type': 'application/json', 'User-Agent': 'CanteenX/1.0'},
+                        method='POST'
                     )
+                    with urllib.request.urlopen(req, timeout=10) as r:
+                        resp_data = r.read().decode('utf-8', errors='replace')
+                        try:
+                            resp_body = json.loads(resp_data)
+                        except Exception:
+                            resp_body = resp_data
+                        diagnostics["results"]["resend"] = {
+                            "status_code": r.status,
+                            "response": resp_body
+                        }
+                except urllib.error.HTTPError as e:
+                    err_body = e.read().decode('utf-8', errors='replace')
                     try:
-                        resp_body = r.json()
+                        err_json = json.loads(err_body)
                     except Exception:
-                        resp_body = r.text
+                        err_json = err_body
                     diagnostics["results"]["resend"] = {
-                        "status_code": r.status_code,
-                        "response": resp_body
+                        "status_code": e.code,
+                        "error": err_json
                     }
                 except Exception as e:
                     diagnostics["results"]["resend"] = {"error": str(e)}
 
             # 2. Test Brevo
             if brevo_key:
-                import requests
                 try:
-                    r = requests.post(
+                    payload = json.dumps({
+                        'sender': {'name': 'CanteenX Medi-Caps', 'email': smtp_user or 'canteenmaill@gmail.com'},
+                        'to': [{'email': to_email}],
+                        'subject': '[CanteenX Test] Verification Email Delivery Test',
+                        'htmlContent': '<p>Testing CanteenX email delivery via Brevo.</p>'
+                    }).encode('utf-8')
+                    req = urllib.request.Request(
                         'https://api.brevo.com/v3/smtp/email',
-                        headers={'api-key': brevo_key, 'Content-Type': 'application/json', 'accept': 'application/json'},
-                        json={
-                            'sender': {'name': 'CanteenX Medi-Caps', 'email': smtp_user or 'canteen.maill@gmail.com'},
-                            'to': [{'email': to_email}],
-                            'subject': '[CanteenX Test] Verification Email Delivery Test',
-                            'htmlContent': '<p>Testing CanteenX email delivery via Brevo.</p>'
-                        },
-                        timeout=8
+                        data=payload,
+                        headers={'api-key': brevo_key, 'Content-Type': 'application/json', 'Accept': 'application/json', 'User-Agent': 'CanteenX/1.0'},
+                        method='POST'
                     )
+                    with urllib.request.urlopen(req, timeout=10) as r:
+                        resp_data = r.read().decode('utf-8', errors='replace')
+                        try:
+                            resp_body = json.loads(resp_data)
+                        except Exception:
+                            resp_body = resp_data
+                        diagnostics["results"]["brevo"] = {
+                            "status_code": r.status,
+                            "response": resp_body
+                        }
+                except urllib.error.HTTPError as e:
+                    err_body = e.read().decode('utf-8', errors='replace')
                     try:
-                        resp_body = r.json()
+                        err_json = json.loads(err_body)
                     except Exception:
-                        resp_body = r.text
+                        err_json = err_body
                     diagnostics["results"]["brevo"] = {
-                        "status_code": r.status_code,
-                        "response": resp_body
+                        "status_code": e.code,
+                        "error": err_json
                     }
                 except Exception as e:
                     diagnostics["results"]["brevo"] = {"error": str(e)}
 
             # 3. Test SMTP port 587
-            import smtplib
             try:
                 s587 = smtplib.SMTP(getattr(settings, 'EMAIL_HOST', 'smtp.gmail.com'), 587, timeout=4)
                 s587.ehlo()
