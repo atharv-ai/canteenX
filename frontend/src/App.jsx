@@ -30,6 +30,9 @@ import AdminReportsPage from './pages/admin/AdminReportsPage';
 // Super Admin Page
 import SuperAdminDashboard from './pages/superadmin/SuperAdminDashboard';
 
+// AI Buddy Assistant
+import AIBuddyWidget from './components/student/AIBuddyWidget';
+
 // Route Guards
 import ProtectedRoute from './routes/ProtectedRoute';
 import AdminRoute from './routes/AdminRoute';
@@ -84,6 +87,7 @@ function App() {
               {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            <AIBuddyWidget />
           </NotificationProvider>
         </CartProvider>
       </AuthProvider>

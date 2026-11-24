@@ -202,3 +202,8 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://127.0.0.1:5173')
 TWILIO_ACCOUNT_SID   = config('TWILIO_ACCOUNT_SID',   default='')
 TWILIO_AUTH_TOKEN    = config('TWILIO_AUTH_TOKEN',     default='')
 TWILIO_WHATSAPP_FROM = config('TWILIO_WHATSAPP_FROM',  default='whatsapp:+14155238886')
+
+# Razorpay Payment Gateway Configuration
+RAZORPAY_KEY_ID     = config('RAZORPAY_KEY_ID',     default='rzp_test_51MockDemoKey')
+RAZORPAY_KEY_SECRET = config('RAZORPAY_KEY_SECRET', default='mock_secret_key_12345')
+

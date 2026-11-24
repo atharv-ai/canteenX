@@ -362,7 +362,8 @@ View Live Pass: {_frontend_url()}/orders/{order.id}
     </div>
     """
     html_body = _get_base_html(subject, "Order Accepted", html_content, order)
-    _send_email_safe(to_email, subject, text_body, html_body)
+    # Intermediate step: send in-app website notification & WhatsApp, skip email to prevent inbox clutter
+    # _send_email_safe(to_email, subject, text_body, html_body)
 
     # WhatsApp message
     wa_msg = (
@@ -412,7 +413,8 @@ Digital Pass: {_frontend_url()}/orders/{order.id}
     </div>
     """
     html_body = _get_base_html(subject, "Preparing Order", html_content, order)
-    _send_email_safe(to_email, subject, text_body, html_body)
+    # Intermediate step: send in-app website notification & WhatsApp, skip email to prevent inbox clutter
+    # _send_email_safe(to_email, subject, text_body, html_body)
 
     wa_msg = (
         f"👨‍🍳 *CanteenX: Cooking Started!*\n"

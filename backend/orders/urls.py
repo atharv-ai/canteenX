@@ -2,13 +2,15 @@ from django.urls import path
 from .views import (
     OrderCreateView, StudentOrderListView, StudentOrderDetailView,
     CanteenOrderListView, OrderStatusUpdateView, CancelOrderView,
-    RateOrderView, VerifyOrderPinView
+    RateOrderView, VerifyOrderPinView, RazorpayCreateOrderView, RazorpayVerifyPaymentView
 )
 
 urlpatterns = [
     # Student
     path('', StudentOrderListView.as_view(), name='student_order_list'),
     path('create/', OrderCreateView.as_view(), name='order_create'),
+    path('razorpay/create-order/', RazorpayCreateOrderView.as_view(), name='razorpay_create_order'),
+    path('razorpay/verify/', RazorpayVerifyPaymentView.as_view(), name='razorpay_verify'),
     path('<int:pk>/', StudentOrderDetailView.as_view(), name='student_order_detail'),
     path('<int:order_id>/cancel/', CancelOrderView.as_view(), name='student_order_cancel'),
     path('<int:order_id>/rate/', RateOrderView.as_view(), name='order_rate'),

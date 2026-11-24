@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../../context/CartContext';
-import { createOrder } from '../../api/orders';
+import { createOrder, createRazorpayOrder, verifyRazorpayPayment } from '../../api/orders';
 import Navbar from '../../components/common/Navbar';
 import Footer from '../../components/common/Footer';
 import CartItem from '../../components/student/CartItem';
@@ -24,6 +24,17 @@ export default function CartPage() {
   const tax = subtotal * 0.0; // 0% university tax subsidy
   const total = subtotal + tax;
 
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) return resolve(true);
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
   const handlePlaceOrder = async () => {
     if (items.length === 0) {
       toast.error('Your cart is empty.');
@@ -32,23 +43,96 @@ export default function CartPage() {
 
     setError('');
     setIsPlacingOrder(true);
+
     try {
-      const payload = {
-        payment_method: paymentMethod,
-        special_instructions: specialInstructions,
-      };
-      const { data } = await createOrder(payload);
-      await fetchCart();
-      toast.success(`Order #${data.order_number} placed successfully!`);
-      navigate(`/orders/${data.id}`);
+      if (paymentMethod === 'online') {
+        // 1. Initialize Razorpay payment order
+        const { data: rzpData } = await createRazorpayOrder({
+          special_instructions: specialInstructions,
+        });
+
+        const scriptLoaded = await loadRazorpayScript();
+
+        // If mock key or script blocked, handle simulated test checkout
+        if (!scriptLoaded || rzpData.is_mock || !window.Razorpay) {
+          const verifyRes = await verifyRazorpayPayment({
+            order_id: rzpData.order_id,
+            razorpay_order_id: rzpData.razorpay_order_id,
+            razorpay_payment_id: `pay_test_${Date.now()}`,
+            razorpay_signature: 'mock_signature_valid',
+          });
+          await fetchCart();
+          toast.success(`Online Payment Verified! Order #${verifyRes.data.order_number} confirmed.`);
+          navigate(`/orders/${verifyRes.data.id}`);
+          return;
+        }
+
+        // Standard Razorpay Checkout Modal
+        const options = {
+          key: rzpData.key_id,
+          amount: rzpData.amount,
+          currency: rzpData.currency || 'INR',
+          name: 'CanteenX Medi-Caps',
+          description: `Order #${rzpData.order_number} (${rzpData.canteen_name})`,
+          order_id: rzpData.razorpay_order_id,
+          prefill: {
+            name: rzpData.student_name,
+            email: rzpData.student_email,
+            contact: rzpData.student_phone,
+          },
+          theme: {
+            color: '#ea580c',
+          },
+          handler: async function (response) {
+            try {
+              setIsPlacingOrder(true);
+              const verifyRes = await verifyRazorpayPayment({
+                order_id: rzpData.order_id,
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              });
+              await fetchCart();
+              toast.success(`Payment Successful! Order #${verifyRes.data.order_number} confirmed.`);
+              navigate(`/orders/${verifyRes.data.id}`);
+            } catch (verErr) {
+              const errMsg = verErr.response?.data?.error || 'Payment verification failed.';
+              toast.error(errMsg);
+            } finally {
+              setIsPlacingOrder(false);
+            }
+          },
+          modal: {
+            ondismiss: function () {
+              setIsPlacingOrder(false);
+              toast('Payment cancelled.', { icon: 'ℹ️' });
+            },
+          },
+        };
+
+        const rzpInstance = new window.Razorpay(options);
+        rzpInstance.open();
+      } else {
+        // Cash payment at counter
+        const payload = {
+          payment_method: 'cash',
+          special_instructions: specialInstructions,
+        };
+        const { data } = await createOrder(payload);
+        await fetchCart();
+        toast.success(`Order #${data.order_number} placed successfully!`);
+        navigate(`/orders/${data.id}`);
+      }
     } catch (err) {
       const msg = err.response?.data?.error ||
         err.response?.data?.detail ||
-        'Failed to place order. Please review your cart and try again.';
+        'Failed to process order. Please try again.';
       setError(msg);
       toast.error(msg);
     } finally {
-      setIsPlacingOrder(false);
+      if (paymentMethod === 'cash') {
+        setIsPlacingOrder(false);
+      }
     }
   };
 

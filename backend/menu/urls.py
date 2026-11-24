@@ -2,7 +2,8 @@ from django.urls import path
 from .views import (
     FoodCategoryListView, FoodCategoryCreateView, FoodCategoryDetailView,
     FoodItemListView, FoodItemDetailView, FoodItemCreateView,
-    FoodItemUpdateView, FoodItemDeleteView, AdminFoodItemListView, AdminCategoryListView
+    FoodItemUpdateView, FoodItemDeleteView, AdminFoodItemListView, AdminCategoryListView,
+    AIBuddyView
 )
 
 urlpatterns = [
@@ -10,6 +11,7 @@ urlpatterns = [
     path('categories/', FoodCategoryListView.as_view(), name='category_list'),
     path('items/', FoodItemListView.as_view(), name='food_item_list'),
     path('items/<int:pk>/', FoodItemDetailView.as_view(), name='food_item_detail'),
+    path('ai-buddy/', AIBuddyView.as_view(), name='food_ai_buddy'),
 
     # Admin Food Items
     path('admin/items/', AdminFoodItemListView.as_view(), name='admin_food_item_list'),
