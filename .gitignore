@@ -9,6 +9,9 @@ venv/
 env/
 .venv/
 .env
+.env*
+*.env
+
 *.egg-info/
 dist/
 build/
@@ -31,7 +34,13 @@ staticfiles/
 frontend/node_modules/
 frontend/dist/
 frontend/.env
-frontend/.env.local
+.env*
+*.env
+
+frontend/.env
+.env*
+*.env
+.local
 
 # ──────────────────────────────────────────
 # IDE / Editor
