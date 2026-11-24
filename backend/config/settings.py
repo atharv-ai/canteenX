@@ -207,3 +207,7 @@ TWILIO_WHATSAPP_FROM = config('TWILIO_WHATSAPP_FROM',  default='whatsapp:+141552
 RAZORPAY_KEY_ID     = config('RAZORPAY_KEY_ID',     default='rzp_test_51MockDemoKey')
 RAZORPAY_KEY_SECRET = config('RAZORPAY_KEY_SECRET', default='mock_secret_key_12345')
 
+# Groq AI LLM Configuration (For CanteenX AI Buddy)
+GROQ_API_KEY = config('GROQ_API_KEY', default='')
+
+

@@ -1,4 +1,9 @@
+import json
+import os
 import re
+import urllib.error
+import urllib.request
+from django.conf import settings
 from django.db.models import Q
 from rest_framework import generics, filters, status
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -164,17 +169,12 @@ class AdminCategoryListView(generics.ListAPIView):
 class AIBuddyView(APIView):
     """
     POST /api/food/ai-buddy/
-    Natural language diet, budget, and break-time meal recommender.
-    Accepts prompts like:
-      - "I have Rs. 80 and 10 minutes, what can I eat?"
-      - "High-protein lunch under 150"
-      - "Quick snacks for 15 min recess"
-      - "Something sweet and refreshing"
+    Natural language diet, budget, and break-time meal recommender powered by Groq LLM.
     """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        query = (request.data.get('query') or '').strip().lower()
+        query = (request.data.get('query') or '').strip()
         if not query:
             return Response({
                 'reply': "Hello! I am your CanteenX AI Buddy 👨‍🍳. Ask me anything like:\n• 'I have ₹80 and 10 minutes, what can I eat?'\n• 'High-protein lunch under ₹150'\n• 'Refreshing beverage under ₹50'",
@@ -182,13 +182,105 @@ class AIBuddyView(APIView):
             })
 
         canteen_id = request.data.get('canteen_id')
-        qs = FoodItem.objects.filter(is_available=True)
+        items_qs = FoodItem.objects.filter(is_available=True).select_related('category', 'canteen')
         if canteen_id:
-            qs = qs.filter(canteen_id=canteen_id)
+            try:
+                items_qs = items_qs.filter(canteen_id=int(canteen_id))
+            except (ValueError, TypeError):
+                pass
 
-        # 1. Extract Budget
+        all_items = list(items_qs)
+        if not all_items:
+            return Response({
+                'reply': "Sorry, no food items are currently available in the selected canteen.",
+                'dishes': []
+            })
+
+        groq_api_key = getattr(settings, 'GROQ_API_KEY', '') or os.environ.get('GROQ_API_KEY', '')
+
+        # ── 1. Groq LLM Dispatch ──
+        if groq_api_key:
+            # Build compact menu representation (minimizes prompt token consumption)
+            menu_lines = []
+            for it in all_items:
+                cat = it.category.name if it.category else 'General'
+                diet = 'Veg' if it.is_veg else 'Non-Veg'
+                menu_lines.append(f"[{it.id}] {it.name} - Rs.{it.price:.0f}, {it.preparation_time}m, {diet} ({cat})")
+            menu_text = "\n".join(menu_lines)
+
+            system_prompt = (
+                "You are Chef Medi-Caps, the friendly AI food assistant for CanteenX university canteen.\n"
+                "Given the student's question and the available campus menu, select 1 to 4 best matching dishes.\n"
+                "Strictly respond ONLY in valid JSON matching this schema:\n"
+                "{\n"
+                '  "reply": "Friendly 1-2 sentence recommendation from Chef Medi-Caps explaining why these dishes fit",\n'
+                '  "dish_ids": [list of integer IDs from the menu]\n'
+                "}"
+            )
+
+            req_payload = json.dumps({
+                "model": "qwen/qwen3.8-27b",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Available Menu:\n{menu_text}\n\nStudent: {query}"}
+                ],
+                "temperature": 0.3,
+                "max_tokens": 250
+            }).encode('utf-8')
+
+            req = urllib.request.Request(
+                "https://api.groq.com/openai/v1/chat/completions",
+                data=req_payload,
+                headers={
+                    "Authorization": f"Bearer {groq_api_key}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "CanteenX/1.0"
+                },
+                method="POST"
+            )
+
+            try:
+                with urllib.request.urlopen(req, timeout=8) as resp:
+                    resp_json = json.loads(resp.read().decode('utf-8'))
+                    raw_content = resp_json['choices'][0]['message']['content'].strip()
+
+                    # Extract JSON substring if wrapped in markdown code blocks
+                    json_str = raw_content
+                    if '```' in json_str:
+                        parts = json_str.split('```')
+                        for p in parts:
+                            p_clean = p.strip()
+                            if p_clean.startswith('json'):
+                                p_clean = p_clean[4:].strip()
+                            if p_clean.startswith('{') and p_clean.endswith('}'):
+                                json_str = p_clean
+                                break
+
+                    data = json.loads(json_str)
+                    reply_text = data.get('reply', '')
+                    dish_ids = data.get('dish_ids', [])
+
+                    if dish_ids and isinstance(dish_ids, list):
+                        items_by_id = {it.id: it for it in all_items}
+                        matched_dishes = [items_by_id[did] for did in dish_ids if did in items_by_id]
+                        if matched_dishes:
+                            return Response({
+                                'reply': reply_text or "Here are my top recommendations for you:",
+                                'dishes': FoodItemListSerializer(matched_dishes, many=True).data,
+                                'suggested_queries': [
+                                    "I have ₹80 & 10 minutes",
+                                    "High-protein lunch under ₹150",
+                                    "Quick snacks for 15-min break",
+                                    "Cold drinks & coffee under ₹50"
+                                ]
+                            })
+            except Exception as e:
+                print(f"[Groq LLM Exception - Falling back to local heuristic]: {e}")
+
+        # ── 2. Fallback Heuristic Scorer ──
+        query_lower = query.lower()
         budget = None
-        budget_match = re.search(r'(?:₹|rs\.?|inr|under|below|budget\s*of|less\s*than)?\s*(\d{2,4})\s*(?:₹|rs\.?|inr|rupees|bucks)?', query)
+        budget_match = re.search(r'(?:₹|rs\.?|inr|under|below|budget\s*of|less\s*than)?\s*(\d{2,4})\s*(?:₹|rs\.?|inr|rupees|bucks)?', query_lower)
         if budget_match:
             try:
                 candidate = int(budget_match.group(1))
@@ -197,9 +289,8 @@ class AIBuddyView(APIView):
             except ValueError:
                 pass
 
-        # 2. Extract Preparation Time
         max_time = None
-        time_match = re.search(r'(\d{1,3})\s*(?:min|mins|minute|minutes|m)\b', query)
+        time_match = re.search(r'(\d{1,3})\s*(?:min|mins|minute|minutes|m)\b', query_lower)
         if time_match:
             try:
                 candidate_time = int(time_match.group(1))
@@ -208,26 +299,23 @@ class AIBuddyView(APIView):
             except ValueError:
                 pass
 
-        # 3. Categorize Dietary and Theme Preferences
-        is_protein = any(k in query for k in ['protein', 'gym', 'workout', 'fit', 'healthy', 'diet'])
-        is_sweet = any(k in query for k in ['sweet', 'dessert', 'ice cream', 'cake', 'sugar', 'mithai'])
-        is_beverage = any(k in query for k in ['beverage', 'drink', 'shake', 'juice', 'coffee', 'tea', 'chai', 'lassi'])
-        is_snack = any(k in query for k in ['snack', 'quick', 'fast', 'recess', 'break', 'poha', 'samosa', 'kachori', 'sandwich', 'maggi'])
-        is_meal = any(k in query for k in ['lunch', 'dinner', 'thali', 'meal', 'heavy', 'rice', 'roti', 'combo', 'chole', 'paratha'])
-        is_veg_only = any(k in query for k in ['veg', 'vegetarian', 'pure veg', 'shakahari'])
+        is_protein = any(k in query_lower for k in ['protein', 'gym', 'workout', 'fit', 'healthy', 'diet'])
+        is_sweet = any(k in query_lower for k in ['sweet', 'dessert', 'ice cream', 'cake', 'sugar', 'mithai'])
+        is_beverage = any(k in query_lower for k in ['beverage', 'drink', 'shake', 'juice', 'coffee', 'tea', 'chai', 'lassi'])
+        is_snack = any(k in query_lower for k in ['snack', 'quick', 'fast', 'recess', 'break', 'poha', 'samosa', 'kachori', 'sandwich', 'maggi'])
+        is_meal = any(k in query_lower for k in ['lunch', 'dinner', 'thali', 'meal', 'heavy', 'rice', 'roti', 'combo', 'chole', 'paratha'])
+        is_veg_only = any(k in query_lower for k in ['veg', 'vegetarian', 'pure veg', 'shakahari'])
 
+        filtered = all_items
         if is_veg_only:
-            qs = qs.filter(is_veg=True)
-
+            filtered = [it for it in filtered if it.is_veg]
         if budget is not None:
-            qs = qs.filter(price__lte=budget)
-
+            filtered = [it for it in filtered if it.price <= budget]
         if max_time is not None:
-            qs = qs.filter(preparation_time__lte=max_time)
+            filtered = [it for it in filtered if it.preparation_time <= max_time]
 
-        # 4. Keyword Scoring and Ranking
         scores = {}
-        for item in qs:
+        for item in filtered:
             score = 0
             name_desc = f"{item.name} {item.description}".lower()
             cat_name = item.category.name.lower() if item.category else ""
@@ -245,42 +333,18 @@ class AIBuddyView(APIView):
 
             if item.is_featured:
                 score += 4
-            score += min(item.total_orders, 10)  # popularity bump
+            score += min(item.total_orders, 10)
             scores[item.id] = score
 
-        # Sort by relevance score, then preparation time, then price
-        ranked_items = sorted(qs, key=lambda it: (-scores.get(it.id, 0), it.preparation_time, it.price))[:4]
+        ranked_items = sorted(filtered, key=lambda it: (-scores.get(it.id, 0), it.preparation_time, it.price))[:4]
 
-        # 5. Build Conversational Response
         if not ranked_items:
-            reply = f"I couldn't find any items directly matching your criteria ({f'under ₹{budget}' if budget else ''} {f'ready in {max_time} mins' if max_time else ''}). Try increasing your budget or checking our full menu!"
+            reply = f"I couldn't find any items directly matching your criteria ({f'under ₹{budget}' if budget else ''} {f'ready in {max_time} mins' if max_time else ''}). Try browsing our full menu!"
         else:
-            intro_phrases = []
-            if budget and max_time:
-                intro_phrases.append(f"Ready in under **{max_time} minutes** and within your **₹{budget}** budget")
-            elif budget:
-                intro_phrases.append(f"Delicious dishes under your **₹{budget}** budget")
-            elif max_time:
-                intro_phrases.append(f"Super quick picks ready in **{max_time} minutes or less**")
-            elif is_protein:
-                intro_phrases.append("Nutritious and protein-packed favorites from our counter")
-            elif is_beverage or is_sweet:
-                intro_phrases.append("Refreshing beverages and treats to recharge your day")
-            else:
-                intro_phrases.append("Here are my top student-favorite recommendations")
-
             first_pick = ranked_items[0]
-            summary_desc = f"I especially recommend the **{first_pick.name}** (₹{first_pick.price:.0f}, ready in ~{first_pick.preparation_time}m)."
-            if len(ranked_items) > 1 and budget and (ranked_items[0].price + ranked_items[1].price <= budget):
-                combo_cost = ranked_items[0].price + ranked_items[1].price
-                combo_desc = f" You can even pair it with **{ranked_items[1].name}** for a full combo at just ₹{combo_cost:.0f}!"
-            else:
-                combo_desc = ""
-
-            reply = f"👨‍🍳 {intro_phrases[0]}! {summary_desc}{combo_desc} Click below to add directly to your food tray:"
+            reply = f"👨‍🍳 I recommend the **{first_pick.name}** (₹{first_pick.price:.0f}, ~{first_pick.preparation_time}m). Click below to add directly to your food tray:"
 
         serializer = FoodItemListSerializer(ranked_items, many=True)
-
         return Response({
             'reply': reply,
             'budget': budget,
