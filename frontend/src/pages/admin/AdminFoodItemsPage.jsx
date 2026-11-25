@@ -343,6 +343,11 @@ export default function AdminFoodItemsPage() {
                     </option>
                   ))}
                 </select>
+                {categories.length === 0 && (
+                  <p className="text-[10px] text-amber-600 mt-1 font-semibold">
+                    No categories found. Please add categories in the Categories tab first.
+                  </p>
+                )}
               </div>
 
               <div>

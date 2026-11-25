@@ -41,14 +41,20 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f'Created Canteen: {canteen.name}'))
 
         # Secondary Canteen for multi-canteen demonstration
-        canteen2, _ = Canteen.objects.get_or_create(
-            name='Engineering Block Cafeteria',
-            defaults={
-                'description': 'Quick bites, premium coffee, fresh beverages, and breakfast snacks for engineering students and faculty.',
-                'location': 'Near Mechanical Engineering Workshop, Medi-Caps University',
-                'is_active': True,
-            }
-        )
+        canteen2 = Canteen.objects.filter(name__in=['Cafine', 'Engineering Block Cafeteria']).first()
+        if not canteen2:
+            canteen2 = Canteen.objects.create(
+                name='Cafine',
+                description='Specialty cafe, artisan hot brews, burgers, subs, grilled toasts, pizzas and creamy shakes at Engineering Block, Medi-Caps University.',
+                location='Engineering Block, Medi-Caps University Campus, AB Road, Indore',
+                is_active=True,
+            )
+        else:
+            canteen2.name = 'Cafine'
+            canteen2.description = 'Specialty cafe, artisan hot brews, burgers, subs, grilled toasts, pizzas and creamy shakes at Engineering Block, Medi-Caps University.'
+            canteen2.location = 'Engineering Block, Medi-Caps University Campus, AB Road, Indore'
+            canteen2.is_active = True
+            canteen2.save()
 
         # 3. Central Canteen Admin
         canteen_admin_email = 'canteen@medicaps.ac.in'
@@ -372,4 +378,155 @@ class Command(BaseCommand):
                 created_count += 1
 
         self.stdout.write(self.style.SUCCESS(f'Seeded {created_count} food items successfully!'))
+
+        # 6. Seed Cafine Categories and Menu Items
+        self.stdout.write(self.style.NOTICE("Seeding Cafine (Engineering Block) Menu & Categories..."))
+
+        cafine_categories_def = [
+            ('Hot Beverages', 1, 'Freshly brewed chai, espresso, and warming teas'),
+            ('Burger & Sub', 2, 'Gourmet burgers and subs grilled with signature sauces and fillings'),
+            ('Cold Beverages', 3, 'Iced teas, cold coffees, coolers, limewater and sodas'),
+            ('Mojito', 4, 'Refreshing fizzy fruit and mint mocktails'),
+            ('Paratha', 5, 'Tawa and tandoori parathas served fresh'),
+            ('Sandwich', 6, 'Grilled and toasted sandwiches packed with cheese and fillings'),
+            ('Pizza', 7, 'Fresh-baked thin crust and pan pizzas with mozzarella'),
+            ('Garlic Bread And Toast', 8, 'Crunchy garlic breads, cheesy toasts, and snacks'),
+            ('Soups', 9, 'Hot comforting bowls of soup'),
+            ('Pasta', 10, 'Creamy Italian pastas tossed in aromatic herbs'),
+            ('Maggi', 11, 'Campus favorite Maggi variants loaded with toppings'),
+            ('Fries', 12, 'Golden crispy potato fries seasoned to perfection'),
+            ('Milkshakes', 13, 'Thick creamy milkshakes blended with chocolate and fruit'),
+            ('Happiness & Bakery', 14, 'Brownies, samosas, bread butter and sweet treats'),
+        ]
+
+        cafine_cats = {}
+        for cat_name, order, desc in cafine_categories_def:
+            c_obj, _ = FoodCategory.objects.get_or_create(
+                canteen=canteen2,
+                name=cat_name,
+                defaults={'order': order, 'description': desc, 'is_active': True}
+            )
+            cafine_cats[cat_name] = c_obj
+
+        cafine_items_data = [
+            # Hot Beverages
+            ('Tea (Small)', 'Hot Beverages', Decimal('10.00'), 'Fresh hot Indian spiced cutting tea.', True, 5),
+            ('Tea (Big)', 'Hot Beverages', Decimal('15.00'), 'Large cup of premium aromatic milk tea.', True, 5),
+            ('Coffee (Small)', 'Hot Beverages', Decimal('25.00'), 'Rich hot roasted milk coffee.', True, 5),
+            ('Coffee (Big)', 'Hot Beverages', Decimal('50.00'), 'Large frothy aromatic milk coffee.', True, 5),
+            ('Hot Lemon Tea (Small)', 'Hot Beverages', Decimal('30.00'), 'Invigorating black tea with fresh lemon zest.', True, 5),
+            ('Hot Lemon Tea (Big)', 'Hot Beverages', Decimal('50.00'), 'Large hot lemon tea infused with citrus herbs.', True, 5),
+            ('Black Coffee (Small)', 'Hot Beverages', Decimal('30.00'), 'Intense dark roast Americano espresso.', True, 5),
+            ('Black Coffee (Big)', 'Hot Beverages', Decimal('50.00'), 'Double shot rich Americano black coffee.', True, 5),
+            ('Add Hazelnut Syrup', 'Hot Beverages', Decimal('15.00'), 'Flavor shot of nutty Italian hazelnut syrup.', True, 2),
+
+            # Burger & Sub
+            ('Classic Burger', 'Burger & Sub', Decimal('50.00'), 'Golden veggie patty, fresh tomato, crisp lettuce & mayo.', True, 10),
+            ('Peri Peri Burger', 'Burger & Sub', Decimal('75.00'), 'Spicy peri-peri seasoned patty with fiery chipotle sauce.', True, 10),
+            ('Cheese Burger', 'Burger & Sub', Decimal('65.00'), 'Melted cheddar slice over savory vegetable patty.', True, 10),
+            ('Tandoori Burger', 'Burger & Sub', Decimal('75.00'), 'Smoky tandoori paneer patty with mint mayo and onions.', True, 10),
+            ('Salad Sub', 'Burger & Sub', Decimal('95.00'), 'Fresh bell peppers, cucumbers, lettuce, olives & vinaigrette.', True, 10),
+            ('Mexican Sub', 'Burger & Sub', Decimal('100.00'), 'Zesty Mexican bean patty, jalapeños, salsa and cheese.', True, 10),
+            ('Paneer Sub', 'Burger & Sub', Decimal('115.00'), 'Marinated spiced paneer cubes, crunchy veggies & mayo.', True, 12),
+            ('Schezwan Sub', 'Burger & Sub', Decimal('115.00'), 'Spicy Schezwan tossed filling with garlic and peppers.', True, 12),
+
+            # Cold Beverages
+            ('Lemon Ice Tea', 'Cold Beverages', Decimal('55.00'), 'Chilled brewed iced tea with lemon and crushed mint.', True, 5),
+            ('Peach Ice Tea', 'Cold Beverages', Decimal('70.00'), 'Sweet aromatic peach iced tea served super chilled.', True, 5),
+            ('Cold Coffee', 'Cold Beverages', Decimal('70.00'), 'Classic creamy blended iced coffee.', True, 5),
+            ('Cold Chocolate', 'Cold Beverages', Decimal('75.00'), 'Decadent rich dark cocoa iced drink.', True, 5),
+            ('Cold Coffee With Ice Cream', 'Cold Beverages', Decimal('100.00'), 'Thick cold coffee crowned with a vanilla scoop.', True, 6),
+            ('Limewater', 'Cold Beverages', Decimal('20.00'), 'Hydrating fresh lime water sweet or salted.', True, 3),
+            ('Lime Soda', 'Cold Beverages', Decimal('30.00'), 'Sparkling soda with fresh lime juice and black salt.', True, 3),
+            ('Hazelnut Cold Coffee', 'Cold Beverages', Decimal('85.00'), 'Cold coffee infused with hazelnut syrup shot.', True, 5),
+
+            # Mojito
+            ('Mint Mojito', 'Mojito', Decimal('70.00'), 'Crushed fresh garden mint, lemon wedges, and soda.', True, 5),
+            ('Peach Mojito', 'Mojito', Decimal('75.00'), 'Juicy sweet peach infused fizzy cooler.', True, 5),
+            ('Green Apple Mojito', 'Mojito', Decimal('75.00'), 'Crisp tangy green apple cooler with bubbly soda.', True, 5),
+
+            # Paratha
+            ('Aloo Paratha', 'Paratha', Decimal('70.00'), 'Whole wheat flatbread stuffed with spiced mashed potatoes.', True, 12),
+            ('Paneer Paratha', 'Paratha', Decimal('80.00'), 'Grated fresh cottage cheese stuffed paratha with butter.', True, 12),
+            ('Sev Paratha', 'Paratha', Decimal('65.00'), 'Authentic Indore crispy sev and onion stuffed paratha.', True, 10),
+
+            # Sandwich
+            ('Masala Grill Sandwich', 'Sandwich', Decimal('50.00'), 'Spiced potato filling grilled golden in butter.', True, 10),
+            ('Cheese Chutney Sandwich', 'Sandwich', Decimal('60.00'), 'Spicy coriander-mint chutney with gooey melted cheese.', True, 10),
+            ('Cheese Corn Sandwich', 'Sandwich', Decimal('65.00'), 'Sweet golden corn kernels mixed with melted mozzarella.', True, 10),
+            ('Veg Cheese Sandwich', 'Sandwich', Decimal('75.00'), 'Sliced garden veggies and cheese grilled crisp.', True, 10),
+            ('Chilly Paneer Sandwich', 'Sandwich', Decimal('85.00'), 'Wok-tossed chilli paneer slices packed in bread.', True, 10),
+            ('Paneer Tikka Sandwich', 'Sandwich', Decimal('85.00'), 'Smoky paneer tikka chunks with capsicum and cheese.', True, 10),
+
+            # Pizza
+            ('Cheese Pizza', 'Pizza', Decimal('80.00'), 'Classic 7-inch crust loaded with 100% mozzarella cheese.', True, 15),
+            ('Cheese Corn Pizza', 'Pizza', Decimal('90.00'), 'Golden sweet corn sprinkled over rich tomato sauce & cheese.', True, 15),
+            ('Onion Paneer Pizza', 'Pizza', Decimal('99.00'), 'Crisp onions and fresh spiced paneer cubes on pizza sauce.', True, 15),
+            ('Chilly Paneer Pizza', 'Pizza', Decimal('115.00'), 'Spicy chilli paneer cubes over melted mozzarella.', True, 15),
+            ('Makhni Paneer Pizza', 'Pizza', Decimal('115.00'), 'Creamy makhni gravy base topped with paneer & cheese.', True, 15),
+            ('Paneer Tikka Pizza', 'Pizza', Decimal('115.00'), 'Tandoori paneer tikka chunks, capsicum & cheese.', True, 15),
+
+            # Garlic Bread And Toast
+            ('Cheesy Garlic Bread', 'Garlic Bread And Toast', Decimal('60.00'), 'Crisp French bread baked with garlic butter & cheese.', True, 10),
+            ('Pizza Toast', 'Garlic Bread And Toast', Decimal('50.00'), 'Toasted bread topped with pizza sauce, veggies and cheese.', True, 10),
+            ('Cheese Chilly Toast', 'Garlic Bread And Toast', Decimal('60.00'), 'Finely chopped green chillies and molten cheese toast.', True, 10),
+            ('Chilly Garlic Bread', 'Garlic Bread And Toast', Decimal('85.00'), 'Spicy garlic butter rubbed bread with chilli flakes.', True, 10),
+
+            # Soups
+            ('Tomato Soup', 'Soups', Decimal('30.00'), 'Silky ripe tomato soup served with crispy croutons.', True, 8),
+            ('Corn Soup', 'Soups', Decimal('30.00'), 'Sweet corn broth with diced veggies and white pepper.', True, 8),
+            ('Manchow Soup', 'Soups', Decimal('30.00'), 'Spicy Indo-Chinese dark soup topped with crispy fried noodles.', True, 8),
+
+            # Pasta
+            ('White Sauce Pasta', 'Pasta', Decimal('80.00'), 'Penne pasta tossed in rich cheesy béchamel white sauce.', True, 12),
+            ('Red Sauce Pasta', 'Pasta', Decimal('80.00'), 'Tangy herb tomato marinara pasta with bell peppers.', True, 12),
+            ('Mix Sauce Pasta', 'Pasta', Decimal('90.00'), 'Pink sauce blend of creamy white and tangy arrabbiata sauces.', True, 12),
+
+            # Maggi
+            ('Masala Maggi', 'Maggi', Decimal('40.00'), 'Loaded with extra Indian spices, onions, and tomatoes.', True, 8),
+            ('Cheese Maggi', 'Maggi', Decimal('60.00'), 'Decadent creamy Maggi draped in gooey melted cheese.', True, 8),
+            ('Veggie Chilly Garlic Maggi', 'Maggi', Decimal('50.00'), 'Spiced up with crushed garlic, veggies and red chilli oil.', True, 8),
+            ('Butter Garlic Maggi', 'Maggi', Decimal('50.00'), 'Rich butter sautéed garlic infused aromatic Maggi.', True, 8),
+
+            # Fries
+            ('Salted / Masala Fries', 'Fries', Decimal('60.00'), 'Deep fried potato batons dusted with chaat masala or sea salt.', True, 8),
+            ('Peri Peri / Cheese Fries', 'Fries', Decimal('75.00'), 'Crispy French fries tossed in fiery peri-peri and melted cheese.', True, 8),
+
+            # Milkshakes
+            ('Classic Milkshake', 'Milkshakes', Decimal('50.00'), 'Chilled creamy vanilla / chocolate milkshake.', True, 6),
+            ('Kitkat Milkshake', 'Milkshakes', Decimal('75.00'), 'Crunchy KitKat bars blended with chocolate ice cream.', True, 6),
+            ('Oreo Milkshake', 'Milkshakes', Decimal('75.00'), 'Thick vanilla shake infused with Oreo cookie crumbs.', True, 6),
+            ('Butterscotch Milkshake', 'Milkshakes', Decimal('75.00'), 'Creamy butterscotch crunch and caramel syrup.', True, 6),
+            ('Mango Milkshake', 'Milkshakes', Decimal('70.00'), 'Rich Alphonso mango pulp blended in thick cold milk.', True, 6),
+            ('Strawberry Milkshake', 'Milkshakes', Decimal('70.00'), 'Sweet pink strawberry shake crowned with strawberry drizzle.', True, 6),
+            ('Nutella Milkshake', 'Milkshakes', Decimal('80.00'), 'Hazelnut cocoa Nutella generously blended with ice cream.', True, 6),
+            ('Brownie Milkshake', 'Milkshakes', Decimal('75.00'), 'Fudgy chocolate brownie pieces blended into a thick shake.', True, 6),
+
+            # Happiness & Bakery
+            ('Brownie With Ice Cream', 'Happiness & Bakery', Decimal('80.00'), 'Warm chocolate walnut brownie served with vanilla ice cream.', True, 5),
+            ('Bread Butter (2 Slice)', 'Happiness & Bakery', Decimal('30.00'), 'Soft fresh bread slices smeared with creamy salted Amul butter.', True, 3),
+            ('Bread Jam (2 Slice)', 'Happiness & Bakery', Decimal('30.00'), 'Sweet mixed fruit Kissan jam on soft bread slices.', True, 3),
+            ('Bake Samosa (plain)', 'Happiness & Bakery', Decimal('25.00'), 'Flaky golden baked pastry stuffed with spiced potatoes.', True, 3),
+            ('Bake Samosa With Sauces', 'Happiness & Bakery', Decimal('30.00'), 'Crushed baked samosa drizzled with sweet tamarind and mint chutneys.', True, 3),
+        ]
+
+        cafine_count = 0
+        for name, cat_name, price, desc, is_veg, prep_time in cafine_items_data:
+            cat = cafine_cats.get(cat_name)
+            FoodItem.objects.update_or_create(
+                canteen=canteen2,
+                name=name,
+                defaults={
+                    'category': cat,
+                    'price': price,
+                    'description': desc,
+                    'is_veg': is_veg,
+                    'is_available': True,
+                    'preparation_time': prep_time,
+                    'stock_quantity': 50,
+                }
+            )
+            cafine_count += 1
+
+        self.stdout.write(self.style.SUCCESS(f'Seeded {cafine_count} Cafine food items and {len(cafine_cats)} categories successfully!'))
         self.stdout.write(self.style.SUCCESS('Initial data seeding completed for CanteenX!'))
