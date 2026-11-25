@@ -50,21 +50,50 @@ class Command(BaseCommand):
             }
         )
 
-        # 3. Canteen Admin
+        # 3. Central Canteen Admin
         canteen_admin_email = 'canteen@medicaps.ac.in'
-        if not User.objects.filter(email=canteen_admin_email).exists():
-            admin_user = User.objects.create_user(
-                email=canteen_admin_email,
-                full_name='Indore Canteen Manager',
-                password='Canteen@123',
-                mobile='9826012345',
-                role='canteen_admin',
-                is_staff=True
+        admin_user, _ = User.objects.get_or_create(
+            email=canteen_admin_email,
+            defaults={
+                'full_name': 'Central Canteen Manager',
+                'mobile': '9826012345',
+                'role': 'canteen_admin',
+                'is_staff': True,
+                'is_active': True,
+                'is_email_verified': True,
+            }
+        )
+        admin_user.set_password('Canteen@123')
+        admin_user.role = 'canteen_admin'
+        admin_user.is_staff = True
+        admin_user.is_active = True
+        admin_user.is_email_verified = True
+        admin_user.save()
+        CanteenAdminProfile.objects.update_or_create(user=admin_user, defaults={'canteen': canteen})
+        self.stdout.write(self.style.SUCCESS(f'Verified Central Canteen Admin: {canteen_admin_email} / Canteen@123'))
+
+        # 3b. Cafine Admin
+        cafine_emails = ['cafine@medicaps.ac.in', 'engg.canteen@medicaps.ac.in']
+        for c_email in cafine_emails:
+            cafine_admin, _ = User.objects.get_or_create(
+                email=c_email,
+                defaults={
+                    'full_name': 'Cafine Engineering Manager',
+                    'mobile': '9826099887',
+                    'role': 'canteen_admin',
+                    'is_staff': True,
+                    'is_active': True,
+                    'is_email_verified': True,
+                }
             )
-            CanteenAdminProfile.objects.create(user=admin_user, canteen=canteen)
-            self.stdout.write(self.style.SUCCESS(f'Created Canteen Admin: {canteen_admin_email} / Canteen@123'))
-        else:
-            self.stdout.write('Canteen Admin already exists.')
+            cafine_admin.set_password('Cafine@123')
+            cafine_admin.role = 'canteen_admin'
+            cafine_admin.is_staff = True
+            cafine_admin.is_active = True
+            cafine_admin.is_email_verified = True
+            cafine_admin.save()
+            CanteenAdminProfile.objects.update_or_create(user=cafine_admin, defaults={'canteen': canteen2})
+            self.stdout.write(self.style.SUCCESS(f'Verified Cafine Admin: {c_email} / Cafine@123'))
 
         # 4. Sample Student
         student_email = 'student@medicaps.ac.in'
